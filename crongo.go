@@ -8,35 +8,35 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package crongo
 
 import (
+	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
-	"net/url"
+	"net/http"
+	"os"
 	"os/exec"
 	"time"
 )
 
+// Job contains details about a command that was executes
 type Job struct {
-	Start   time.Time
-	End     time.Time
-	Pid     int
-	Command string
-	Output  string
-	Status  string
-	Success bool
+	Start    time.Time
+	End      time.Time
+	Pid      int
+	Command  string
+	Output   string
+	Status   string
+	Success  bool
+	Hostname string
 }
 
-type Config struct {
-	Server url.URL
-	Token  string
-}
-
+// Run executes a command and captures its output
+// Returns a Job
 func Run(command string) Job {
 	var j Job
 
@@ -51,31 +51,34 @@ func Run(command string) Job {
 	j.Success = cmd.ProcessState.Success()
 	j.Pid = cmd.ProcessState.Pid()
 
-	//command returned non-zero exit
-	//Unsure exactly how to handle this
+	// command returned non-zero exit
 	if err != nil {
 		j.Status = err.Error()
 		log.Printf("ERROR: %s\n", err)
-	} else {
-		log.Printf("OK\n")
 	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Printf("Unable to get hostname, somehow..")
+		hostname = "UNKNOWN"
+	}
+	j.Hostname = hostname
 
 	return j
 }
 
-func ReadConfig(confPath string) Config {
-	b, err := ioutil.ReadFile(confPath)
-	if err != nil {
-		log.Printf("ERROR: Unable to read config: %s", confPath)
-		log.Panic()
-	}
-	var c Config
-	err = json.Unmarshal(b, &c)
+func PostJob(j Job, config ClientConfig) {
 
+	b, _ := json.Marshal(j)
+	log.Printf("%s", b)
+
+	endpoint := config.Server + "/api/jobs"
+
+	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		log.Printf("ERROR: Config is invalid JSON")
-		log.Printf("%s\n", err)
-		log.Panic()
+		log.Println("ERROR: Unable to send job\n")
+		log.Panic(err)
 	}
-	return c
+
+	log.Println(resp)
 }

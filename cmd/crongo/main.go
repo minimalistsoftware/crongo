@@ -8,45 +8,32 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"github.com/minimalistsoftware/crongo"
 	"log"
-	"net/http"
 )
 
-var toRun = flag.String("cmd", "", "command to run")
+var cmd = flag.String("cmd", "", "command to run")
 var conf = flag.String("conf", "/etc/crongo.json", "path to crongo.json config file")
 
 func main() {
 	flag.Parse()
 
-	if *toRun == "" {
+	if *cmd == "" {
 		log.Fatal("ERROR: cmd is empty")
 	}
 
 	log.Println(*conf)
 
-	config := crongo.ReadConfig(*conf)
+	config := crongo.ReadClientConfig(*conf)
 
-	j := crongo.Run(*toRun)
-	b, _ := json.Marshal(j)
-	log.Printf("%s", b)
+	job := crongo.Run(*cmd)
+	crongo.PostJob(job, config)
 
-	endpoint := config.Server.String() + "/api/jobs"
-
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(b))
-	if err != nil {
-		log.Println("ERROR: Unable to send job\n")
-		log.Panic(err)
-	}
-
-	log.Println(resp)
 }
