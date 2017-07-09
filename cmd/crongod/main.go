@@ -25,6 +25,6 @@ func main() {
 	flag.Parse()
 
 	log.Println("Started crongod")
-	crongo.ReadServerConfig(*conf)
-	crongo.ServeAPI()
+	config := crongo.ReadServerConfig(*conf)
+	crongo.ServeAPI(config)
 }

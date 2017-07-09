@@ -16,7 +16,6 @@ package crongo
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -30,21 +29,11 @@ type Job struct {
 	End      time.Time
 	Pid      int
 	Command  string
+	Args     string
 	Output   string
 	Status   string
 	Success  bool
 	Hostname string
-}
-
-//@TODO sort by job age
-type ByAge []Job
-
-func (j ByAge) Len() int {
-	return len(j)
-}
-
-func (j ByAge) Less(a, b int) bool {
-	return false
 }
 
 // Run executes a command and captures its output
@@ -54,6 +43,7 @@ func Run(command string, args string) Job {
 
 	cmd := exec.Command(command, args)
 	j.Command = command
+	j.Args = args
 	j.Start = time.Now()
 
 	out, err := cmd.Output()
@@ -89,37 +79,4 @@ func PostJob(j Job, config ClientConfig) {
 		log.Println("ERROR: Unable to send job\n")
 		log.Panic(err)
 	}
-}
-
-func ListJobs() []Job {
-	//TODO read from config
-	files, err := ioutil.ReadDir("./output")
-	if err != nil {
-		log.Printf("ERROR unable to read jobs output directory: %s\n", err)
-	}
-	jobs := make([]Job, len(files))
-	for _, file := range files {
-		job, err := ReadJob(file.Name())
-		if err != nil {
-			continue
-		}
-		jobs = append(jobs, job)
-	}
-	return jobs
-}
-
-func ReadJob(filename string) (Job, error) {
-	var j Job
-	//@TODO read from Config
-	b, err := ioutil.ReadFile("./output/" + filename)
-	if err != nil {
-		log.Printf("ERROR unable to read job file: %s\n", err)
-		return j, err
-	}
-	err = json.Unmarshal(b, &j)
-	if err != nil {
-		log.Printf("ERROR unable to read job file json: %s\n", err)
-		return j, err
-	}
-	return j, nil
 }

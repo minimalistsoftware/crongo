@@ -23,13 +23,16 @@ import (
 	"time"
 )
 
-var OutputDir = "./output/"
-
 func ApiHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Api")
 }
 
-func JobsHandler(w http.ResponseWriter, r *http.Request) {
+type JobsHandler struct {
+	Config ServerConfig
+}
+
+func (jh JobsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method == "POST" {
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -40,21 +43,74 @@ func JobsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("ERROR: Unable to decode JSON")
 		}
-		SaveJob(j)
+		jh.SaveJob(j)
 	}
 
 	if r.Method == "GET" {
-		jobs := ListJobs()
-		//TODO handle this error
-		b, _ := json.Marshal(jobs)
+		jobs := jh.ListJobs()
+		b, err := json.Marshal(jobs)
+		if err != nil {
+			log.Printf("ERROR: Unable to marshal Jobs array: %s\n", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError)
+		}
 		w.Write(b)
 
 	}
 }
 
-func ServeAPI() {
+// Write the job JSON to the output directory
+func (jh JobsHandler) SaveJob(j Job) {
+
+	now := time.Now()
+	nowFormatted := now.Format("20060102T15_04_05")
+
+	filename := nowFormatted + "_" + j.Hostname + "_" + path.Base(j.Command) + ".json"
+	fullPath := path.Join(jh.Config.OutputDir, filename)
+
+	b, _ := json.Marshal(j)
+	ioutil.WriteFile(fullPath, b, 0666)
+}
+
+func (jh JobsHandler) ListJobs() []Job {
+	files, err := ioutil.ReadDir(jh.Config.OutputDir)
+	if err != nil {
+		log.Printf("ERROR unable to read jobs output directory: %s\n", err)
+	}
+	jobs := make([]Job, len(files))
+
+	for i, file := range files {
+		job, err := jh.ReadJob(file.Name())
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		jobs[i] = job
+	}
+	return jobs
+}
+
+func (jh JobsHandler) ReadJob(filename string) (Job, error) {
+	var j Job
+	f := path.Join(jh.Config.OutputDir, filename)
+	b, err := ioutil.ReadFile(f)
+	if err != nil {
+		log.Printf("ERROR unable to read job file: %s\n", err)
+		return j, err
+	}
+	err = json.Unmarshal(b, &j)
+	if err != nil {
+		log.Printf("ERROR unable to read job file json: %s\n", err)
+		return j, err
+	}
+	return j, nil
+}
+
+func ServeAPI(config ServerConfig) {
+	var jh JobsHandler
+	jh.Config = config
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/jobs", JobsHandler)
+	mux.Handle("/api/jobs", jh)
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		// The "/" pattern matches everything, so we need to check
 		// that we're at the root here.
@@ -65,21 +121,6 @@ func ServeAPI() {
 		fmt.Fprintf(w, "Welcome. This will eventually display success/failures of jobs")
 	})
 
-	//@TODO read listen address from config
-	log.Fatal(http.ListenAndServe(":8080", mux))
-}
-
-// Write the job JSON to the output directory
-func SaveJob(j Job) {
-
-	now := time.Now()
-	nowFormatted := now.Format("20060102T15_04_05")
-	log.Println(nowFormatted)
-
-	filename := nowFormatted + "_" + j.Hostname + "_" + path.Base(j.Command) + ".json"
-	fullPath := path.Join(OutputDir, filename)
-
-	b, _ := json.Marshal(j)
-	ioutil.WriteFile(fullPath, b, 0666)
-
+	log.Printf("Listening on %s\n", jh.Config.ListenAddress)
+	log.Fatal(http.ListenAndServe(jh.Config.ListenAddress, mux))
 }

@@ -29,8 +29,9 @@ func ReadClientConfig(confPath string) ClientConfig {
 }
 
 type ServerConfig struct {
-	ValidTokens []string
-	OutputDir   string
+	ValidTokens   []string
+	OutputDir     string
+	ListenAddress string
 }
 
 func ReadServerConfig(confPath string) ServerConfig {

@@ -1,4 +1,5 @@
 {
   "ValidTokens": ["batteryhorsestaple", "moop"],
-  "OutputDir": "./output"
+  "OutputDir": "./output",
+  "ListenAddress": ":8080"
 }
