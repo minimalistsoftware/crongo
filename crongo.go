@@ -16,6 +16,7 @@ package crongo
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -23,7 +24,7 @@ import (
 	"time"
 )
 
-// Job contains details about a command that was executes
+// Job contains details about a command that was executed
 type Job struct {
 	Start    time.Time
 	End      time.Time
@@ -35,27 +36,37 @@ type Job struct {
 	Hostname string
 }
 
+//@TODO sort by job age
+type ByAge []Job
+
+func (j ByAge) Len() int {
+	return len(j)
+}
+
+func (j ByAge) Less(a, b int) bool {
+	return false
+}
+
 // Run executes a command and captures its output
 // Returns a Job
-func Run(command string) Job {
+func Run(command string, args string) Job {
 	var j Job
 
-	cmd := exec.Command(command)
+	cmd := exec.Command(command, args)
 	j.Command = command
 	j.Start = time.Now()
 
 	out, err := cmd.Output()
 	j.Output = string(out)
 	j.End = time.Now()
-
-	j.Success = cmd.ProcessState.Success()
-	j.Pid = cmd.ProcessState.Pid()
-
 	// command returned non-zero exit
 	if err != nil {
 		j.Status = err.Error()
-		log.Printf("ERROR: %s\n", err)
+		log.Printf("ERROR %s\n", err)
 	}
+
+	j.Success = cmd.ProcessState.Success()
+	j.Pid = cmd.ProcessState.Pid()
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -70,15 +81,45 @@ func Run(command string) Job {
 func PostJob(j Job, config ClientConfig) {
 
 	b, _ := json.Marshal(j)
-	log.Printf("%s", b)
 
 	endpoint := config.Server + "/api/jobs"
 
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(b))
+	_, err := http.Post(endpoint, "application/json", bytes.NewBuffer(b))
 	if err != nil {
 		log.Println("ERROR: Unable to send job\n")
 		log.Panic(err)
 	}
+}
 
-	log.Println(resp)
+func ListJobs() []Job {
+	//TODO read from config
+	files, err := ioutil.ReadDir("./output")
+	if err != nil {
+		log.Printf("ERROR unable to read jobs output directory: %s\n", err)
+	}
+	jobs := make([]Job, len(files))
+	for _, file := range files {
+		job, err := ReadJob(file.Name())
+		if err != nil {
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs
+}
+
+func ReadJob(filename string) (Job, error) {
+	var j Job
+	//@TODO read from Config
+	b, err := ioutil.ReadFile("./output/" + filename)
+	if err != nil {
+		log.Printf("ERROR unable to read job file: %s\n", err)
+		return j, err
+	}
+	err = json.Unmarshal(b, &j)
+	if err != nil {
+		log.Printf("ERROR unable to read job file json: %s\n", err)
+		return j, err
+	}
+	return j, nil
 }

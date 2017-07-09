@@ -40,8 +40,15 @@ func JobsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("ERROR: Unable to decode JSON")
 		}
-		log.Println(j)
 		SaveJob(j)
+	}
+
+	if r.Method == "GET" {
+		jobs := ListJobs()
+		//TODO handle this error
+		b, _ := json.Marshal(jobs)
+		w.Write(b)
+
 	}
 }
 

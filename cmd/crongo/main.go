@@ -20,6 +20,7 @@ import (
 )
 
 var cmd = flag.String("cmd", "", "command to run")
+var args = flag.String("args", "", "arguments to the command")
 var conf = flag.String("conf", "/etc/crongo.json", "path to crongo.json config file")
 
 func main() {
@@ -29,11 +30,9 @@ func main() {
 		log.Fatal("ERROR: cmd is empty")
 	}
 
-	log.Println(*conf)
-
 	config := crongo.ReadClientConfig(*conf)
 
-	job := crongo.Run(*cmd)
+	job := crongo.Run(*cmd, *args)
 	crongo.PostJob(job, config)
 
 }

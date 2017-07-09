@@ -6,7 +6,6 @@
 * No dependencies
 * Easy to deploy static binaries
 * Written in Go
-* Doesn't do anything useful (yet!)
 
 # Usage
 
@@ -20,4 +19,5 @@ TODO
 
 crongo executes the command, and does an HTTP POST request to the crogod server specified in the config file 
 
-crongod saves a copy of this job on the filesystem /home/crongod/jobs/hostname-jobname-YYYYMMDD-HHSS.json
+crongod saves a copy of this job on the filesystem:
+  YYYYMMDDT_HH_SS_hostname_command.json
