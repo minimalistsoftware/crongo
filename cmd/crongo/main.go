@@ -15,13 +15,42 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/minimalistsoftware/crongo"
 	"log"
+	"strings"
 )
 
 var cmd = flag.String("cmd", "", "command to run")
-var args = flag.String("args", "", "arguments to the command")
+
+//var args = flag.String("args", "", "arguments to the command")
 var conf = flag.String("conf", "/etc/crongo.json", "path to crongo.json config file")
+
+// Example 3: A user-defined flag type, a slice of strings
+type argsFlag []string
+
+var args argsFlag
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+// The String method's output will be used in diagnostics.
+func (a *argsFlag) String() string {
+	return fmt.Sprint(*a)
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+// Set's argument is a string to be parsed to set the flag.
+// It's a space seperated list, so we split it.
+func (a *argsFlag) Set(value string) error {
+
+	for _, arg := range strings.Fields(value) {
+		*a = append(*a, arg)
+	}
+	return nil
+}
+
+func init() {
+	flag.Var(&args, "arg", "Arguments to pass to the command")
+}
 
 func main() {
 	flag.Parse()
@@ -32,7 +61,7 @@ func main() {
 
 	config := crongo.ReadClientConfig(*conf)
 
-	job := crongo.Run(*cmd, *args)
+	job := crongo.Run(*cmd, args)
 	crongo.PostJob(job, config)
 
 }

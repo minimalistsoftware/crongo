@@ -29,7 +29,7 @@ type Job struct {
 	End      time.Time
 	Pid      int
 	Command  string
-	Args     string
+	Args     []string
 	Output   string
 	Status   string
 	Success  bool
@@ -38,10 +38,10 @@ type Job struct {
 
 // Run executes a command and captures its output
 // Returns a Job
-func Run(command string, args string) Job {
+func Run(command string, args []string) Job {
 	var j Job
 
-	cmd := exec.Command(command, args)
+	cmd := exec.Command(command, args...)
 	j.Command = command
 	j.Args = args
 	j.Start = time.Now()
@@ -76,7 +76,7 @@ func PostJob(j Job, config ClientConfig) {
 
 	_, err := http.Post(endpoint, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		log.Println("ERROR: Unable to send job\n")
-		log.Panic(err)
+		log.Println("ERROR: Unable to send job")
+		log.Println(err)
 	}
 }
